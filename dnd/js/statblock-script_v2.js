@@ -2111,11 +2111,20 @@ function UpdateReloadSourcesButtonState() {
 function RenderSourceCheckboxes() {
     let wrapper = $("#source-checkboxes"),
         html = [];
+
+    let GetGameSystemLabel = (source) => {
+        let key = source && source.gamesystem && source.gamesystem.key ? source.gamesystem.key.toLowerCase() : "",
+            name = source && source.gamesystem && source.gamesystem.name ? source.gamesystem.name.toLowerCase() : "";
+        if (key.includes("a5e") || name.includes("a5e")) return " (A5E)";
+        if (key.includes("2024") || name.includes("2024")) return " (5.5e)";
+        return " (5e)";
+    };
+
     for (let i = 0; i < presetSources.length; i++) {
         let source = presetSources[i],
             checked = selectedPresetSourceKeys.includes(source.key) ? " checked" : "";
         html.push("<label style='display:block; font-weight:normal;'><input type='checkbox' class='source-checkbox' value='",
-            source.key, "'", checked, "> ", source.display_name || source.name || source.key, "</label>");
+            source.key, "'", checked, "> ", source.display_name || source.name || source.key, GetGameSystemLabel(source), "</label>");
     }
     wrapper.html(html.join(""));
 
