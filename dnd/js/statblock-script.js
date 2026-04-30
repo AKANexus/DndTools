@@ -927,7 +927,7 @@ var InputFunctions = {
             UpdateStatblock();
             return;
         }
-        $.getJSON("https://api.open5e.com/v1/monsters/" + name, function (jsonArr) {
+        $.getJSON("https://api.open5e.com/v2/creatures/" + name + "/", function (jsonArr) {
             GetVariablesFunctions.SetPreset(jsonArr);
             FormFunctions.SetForms();
             UpdateStatblock();
@@ -1044,6 +1044,83 @@ var InputFunctions = {
     }
 }
 
+function NormalizeOpen5ePreset(preset) {
+    // v2 shape passthrough
+    if (preset && preset.ability_scores) {
+        let actions = Array.isArray(preset.actions) ? preset.actions.slice() : [];
+        let abilityScores = preset.ability_scores || {};
+        let savingThrows = preset.saving_throws || {};
+        let resistances = preset.resistances_and_immunities || {};
+        let languages = preset.languages || {};
+        actions.sort((a, b) => (a.order_in_statblock != null ? a.order_in_statblock : 0) - (b.order_in_statblock != null ? b.order_in_statblock : 0));
+
+        let byType = (type) => actions.filter(action => action.action_type === type).map(action => {
+            let usage = action.usage_limits && action.usage_limits.type === "PER_DAY" && action.usage_limits.param ?
+                " (" + action.usage_limits.param + "/day)" : "";
+            return {
+                name: action.name + usage,
+                desc: action.desc
+            };
+        });
+
+        let speed = preset.speed_all || preset.speed || {};
+        return {
+            name: preset.name || "",
+            size: preset.size && preset.size.name ? preset.size.name : "",
+            type: preset.type && preset.type.name ? preset.type.name : "",
+            subtype: preset.subcategory || "",
+            alignment: preset.alignment || "",
+            strength: abilityScores.strength,
+            dexterity: abilityScores.dexterity,
+            constitution: abilityScores.constitution,
+            intelligence: abilityScores.intelligence,
+            wisdom: abilityScores.wisdom,
+            charisma: abilityScores.charisma,
+            challenge_rating: preset.challenge_rating,
+            armor_class: preset.armor_class,
+            armor_desc: preset.armor_detail || "",
+            hit_dice: preset.hit_dice || "1d8",
+            speed: speed,
+            strength_save: savingThrows.strength,
+            dexterity_save: savingThrows.dexterity,
+            constitution_save: savingThrows.constitution,
+            intelligence_save: savingThrows.intelligence,
+            wisdom_save: savingThrows.wisdom,
+            charisma_save: savingThrows.charisma,
+            skills: preset.skill_bonuses || {},
+            condition_immunities: resistances.condition_immunities_display || "",
+            damage_vulnerabilities: resistances.damage_vulnerabilities_display || "",
+            damage_resistances: resistances.damage_resistances_display || "",
+            damage_immunities: resistances.damage_immunities_display || "",
+            languages: languages.as_string || "",
+            senses: [
+                preset.blindsight_range ? "blindsight " + preset.blindsight_range + " ft." : "",
+                preset.darkvision_range ? "darkvision " + preset.darkvision_range + " ft." : "",
+                preset.tremorsense_range ? "tremorsense " + preset.tremorsense_range + " ft." : "",
+                preset.truesight_range ? "truesight " + preset.truesight_range + " ft." : "",
+                "passive Perception " + (preset.passive_perception || 10)
+            ].filter(Boolean).join(", "),
+            legendary_desc: null,
+            mythic_desc: null,
+            lair_desc: null,
+            lair_desc_end: null,
+            regional_desc: null,
+            regional_desc_end: null,
+            special_abilities: preset.traits || [],
+            actions: byType("ACTION"),
+            bonusActions: byType("BONUS_ACTION"),
+            reactions: byType("REACTION"),
+            legendary_actions: byType("LEGENDARY_ACTION"),
+            mythic_actions: [],
+            lair_actions: [],
+            regional_actions: []
+        };
+    }
+
+    // v1 passthrough
+    return preset;
+}
+
 // Functions to get/set important variables
 var GetVariablesFunctions = {
     // Get all Variables from forms
@@ -1136,6 +1213,8 @@ var GetVariablesFunctions = {
 
     // Get all variables from preset
     SetPreset: function (preset) {
+        preset = NormalizeOpen5ePreset(preset);
+
         // Name and type
         mon.name = preset.name.trim();
         mon.size = preset.size.trim().toLowerCase();
@@ -1974,18 +2053,18 @@ var ArrayFunctions = {
 // Document ready function
 $(function () {
     // Load the preset monster names
-    $.getJSON("https://api.open5e.com/v1/monsters/?format=json&fields=slug,name&limit=1000&document__slug=wotc-srd", function (srdArr) {
+    $.getJSON("https://api.open5e.com/v2/creatures/?format=json&fields=key,name&limit=1000&document__key=srd-2014", function (srdArr) {
         let monsterSelect = $("#monster-select");
         monsterSelect.append("<option value=''></option>");
         monsterSelect.append("<option value=''>-5e SRD-</option>");
         $.each(srdArr.results, function (index, value) {
-            monsterSelect.append("<option value='" + value.slug + "'>" + value.name + "</option>");
+            monsterSelect.append("<option value='" + value.key + "'>" + value.name + "</option>");
         })
-        $.getJSON("https://api.open5e.com/v1/monsters/?format=json&fields=slug,name&limit=1000&document__slug=tob", function (tobArr) {
+        $.getJSON("https://api.open5e.com/v2/creatures/?format=json&fields=key,name&limit=1000&document__key=tob", function (tobArr) {
             monsterSelect.append("<option value=''></option>");
             monsterSelect.append("<option value=''>-Tome of Beasts (Kobold Press)-</option>");
             $.each(tobArr.results, function (index, value) {
-                monsterSelect.append("<option value='" + value.slug + "'>" + value.name + "</option>");
+                monsterSelect.append("<option value='" + value.key + "'>" + value.name + "</option>");
             })
         })
             .fail(function () {
