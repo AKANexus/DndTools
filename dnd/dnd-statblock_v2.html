@@ -68,9 +68,13 @@
                 </select> <button type="button" id="monster-select-button" onclick="InputFunctions.GetPreset()">Use
                     Preset</button></div>
             <div id="source-select-form">
-                <strong>Preset Sources:</strong>
-                <div id="source-checkboxes"></div>
-                <button type="button" id="reload-sources-button" onclick="InputFunctions.ReloadPresetSources()" disabled>Reload Sources</button>
+                <details>
+                    <summary><strong>Preset Sources</strong></summary>
+                    <div id="source-checkboxes"
+                        style="column-count: 3; column-gap: 1.5rem; margin-top: .5rem; text-align: left;"></div>
+                    <button type="button" id="reload-sources-button" onclick="InputFunctions.ReloadPresetSources()"
+                        disabled>Reload Sources</button>
+                </details>
             </div>
             <br>
 
