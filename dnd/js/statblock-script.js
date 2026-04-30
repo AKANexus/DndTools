@@ -1064,6 +1064,10 @@ function NormalizeOpen5ePreset(preset) {
         });
 
         let speed = preset.speed_all || preset.speed || {};
+        let mythicActions = byType("MYTHIC_ACTION");
+        let lairActions = byType("LAIR_ACTION");
+        let regionalActions = byType("REGIONAL_ACTION");
+
         return {
             name: preset.name || "",
             size: preset.size && preset.size.name ? preset.size.name : "",
@@ -1111,9 +1115,9 @@ function NormalizeOpen5ePreset(preset) {
             bonusActions: byType("BONUS_ACTION"),
             reactions: byType("REACTION"),
             legendary_actions: byType("LEGENDARY_ACTION"),
-            mythic_actions: [],
-            lair_actions: [],
-            regional_actions: []
+            mythic_actions: mythicActions.length > 0 ? mythicActions : null,
+            lair_actions: lairActions.length > 0 ? lairActions : null,
+            regional_actions: regionalActions.length > 0 ? regionalActions : null
         };
     }
 
