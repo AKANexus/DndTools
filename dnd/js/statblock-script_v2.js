@@ -1328,7 +1328,7 @@ var GetVariablesFunctions = {
         mon.climbSpeed = GetSpeed(preset.speed, "climb");
         mon.flySpeed = GetSpeed(preset.speed, "fly");
         mon.swimSpeed = GetSpeed(preset.speed, "swim");
-        mon.hover = preset.speed.hasOwnProperty("hover");
+        mon.hover = preset.speed.hasOwnProperty("hover") && preset.speed.hover === true;
 
         if (preset.speed.hasOwnProperty("notes")) {
             mon.customSpeed = true;
