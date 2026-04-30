@@ -1071,6 +1071,7 @@ function NormalizeOpen5ePreset(preset) {
         });
 
         let speed = preset.speed_all || preset.speed || {};
+        let legendaryActions = byType("LEGENDARY_ACTION");
         let mythicActions = byType("MYTHIC_ACTION");
         let lairActions = byType("LAIR_ACTION");
         let regionalActions = byType("REGIONAL_ACTION");
@@ -1121,7 +1122,7 @@ function NormalizeOpen5ePreset(preset) {
             actions: byType("ACTION"),
             bonusActions: byType("BONUS_ACTION"),
             reactions: byType("REACTION"),
-            legendary_actions: byType("LEGENDARY_ACTION"),
+            legendary_actions: legendaryActions.length > 0 ? legendaryActions : null,
             mythic_actions: mythicActions.length > 0 ? mythicActions : null,
             lair_actions: lairActions.length > 0 ? lairActions : null,
             regional_actions: regionalActions.length > 0 ? regionalActions : null
