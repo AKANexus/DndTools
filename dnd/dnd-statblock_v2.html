@@ -67,6 +67,11 @@
                     <option value="default">Restore Default</option>
                 </select> <button type="button" id="monster-select-button" onclick="InputFunctions.GetPreset()">Use
                     Preset</button></div>
+            <div id="source-select-form">
+                <strong>Preset Sources:</strong>
+                <div id="source-checkboxes"></div>
+                <button type="button" id="reload-sources-button" onclick="InputFunctions.ReloadPresetSources()" disabled>Reload Sources</button>
+            </div>
             <br>
 
             <!-- The Actual Stat Block -->

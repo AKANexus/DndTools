@@ -917,6 +917,10 @@ var FormFunctions = {
 
 // Input functions to be called only through HTML
 var InputFunctions = {
+    ReloadPresetSources: function () {
+        LoadCreaturePresetListBySources();
+    },
+
     // Get all variables from a preset
     GetPreset: function () {
         let name = $("#monster-select").val();
@@ -2088,53 +2092,118 @@ function FetchAllOpen5ePages(url, onSuccess, onFail) {
     fetchPage(url);
 }
 
+let presetSources = [],
+    selectedPresetSourceKeys = [],
+    appliedPresetSourceKeys = [];
+
+function AreSameStringArrays(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+}
+
+function UpdateReloadSourcesButtonState() {
+    let current = selectedPresetSourceKeys.slice().sort(),
+        applied = appliedPresetSourceKeys.slice().sort();
+    $("#reload-sources-button").prop("disabled", AreSameStringArrays(current, applied));
+}
+
+function RenderSourceCheckboxes() {
+    let wrapper = $("#source-checkboxes"),
+        html = [];
+    for (let i = 0; i < presetSources.length; i++) {
+        let source = presetSources[i],
+            checked = selectedPresetSourceKeys.includes(source.key) ? " checked" : "";
+        html.push("<label style='display:block; font-weight:normal;'><input type='checkbox' class='source-checkbox' value='",
+            source.key, "'", checked, "> ", source.display_name || source.name || source.key, "</label>");
+    }
+    wrapper.html(html.join(""));
+
+    $(".source-checkbox").on("change", function () {
+        selectedPresetSourceKeys = $(".source-checkbox:checked").map(function () { return $(this).val(); }).get();
+        localStorage.setItem("SelectedPresetSourceKeysV2", JSON.stringify(selectedPresetSourceKeys));
+        UpdateReloadSourcesButtonState();
+    });
+}
+
+function LoadCreaturePresetListBySources() {
+    let monsterSelect = $("#monster-select");
+    monsterSelect.html("<option value=''>-Select-</option><option value='default'>Restore Default</option>");
+
+    if (selectedPresetSourceKeys.length === 0) {
+        appliedPresetSourceKeys = [];
+        UpdateReloadSourcesButtonState();
+        return;
+    }
+
+    let sourceNameByKey = {},
+        remaining = selectedPresetSourceKeys.length,
+        grouped = {};
+    for (let i = 0; i < presetSources.length; i++)
+        sourceNameByKey[presetSources[i].key] = presetSources[i].display_name || presetSources[i].name || presetSources[i].key;
+
+    let onSourceLoaded = function () {
+        remaining--;
+        if (remaining > 0) return;
+
+        let sourceNames = Object.keys(grouped).sort();
+        for (let sourceIndex = 0; sourceIndex < sourceNames.length; sourceIndex++) {
+            let sourceName = sourceNames[sourceIndex],
+                sourceCreatures = grouped[sourceName];
+            sourceCreatures.sort((a, b) => a.name.localeCompare(b.name));
+            monsterSelect.append("<option value=''></option>");
+            monsterSelect.append("<option value=''>-" + sourceName + "-</option>");
+            for (let creatureIndex = 0; creatureIndex < sourceCreatures.length; creatureIndex++) {
+                let creature = sourceCreatures[creatureIndex];
+                monsterSelect.append("<option value='" + creature.key + "'>" + creature.name + "</option>");
+            }
+        }
+
+        appliedPresetSourceKeys = selectedPresetSourceKeys.slice();
+        UpdateReloadSourcesButtonState();
+    };
+
+    for (let i = 0; i < selectedPresetSourceKeys.length; i++) {
+        let sourceKey = selectedPresetSourceKeys[i];
+        FetchAllOpen5ePages(
+            "https://api.open5e.com/v2/creatures/?format=json&fields=key,name,document&document__key=" + encodeURIComponent(sourceKey),
+            function (creatures) {
+                for (let index = 0; index < creatures.length; index++) {
+                    let creature = creatures[index],
+                        documentKey = creature.document && creature.document.key ? creature.document.key : sourceKey,
+                        sourceName = sourceNameByKey[documentKey] || (creature.document && creature.document.display_name ? creature.document.display_name : "Other Sources");
+                    if (!grouped[sourceName]) grouped[sourceName] = [];
+                    grouped[sourceName].push(creature);
+                }
+                onSourceLoaded();
+            },
+            function () { $("#monster-select-form").html("Unable to load monster presets."); });
+    }
+}
+
 // Document ready function
 $(function () {
-    // Load the preset monster names, grouped by source document display name
+    // Load the source list, then allow users to choose which sources to load
     FetchAllOpen5ePages(
         "https://api.open5e.com/v2/documents/?type=SOURCE",
         function (documents) {
-            let sourceNameByKey = {};
-            for (let index = 0; index < documents.length; index++) {
-                let document = documents[index];
-                sourceNameByKey[document.key] = document.display_name || document.name || document.key;
+            presetSources = documents.slice().sort((a, b) => (a.display_name || a.name || "").localeCompare(b.display_name || b.name || ""));
+
+            let savedSourceSelection = localStorage.getItem("SelectedPresetSourceKeysV2");
+            if (savedSourceSelection) {
+                try {
+                    selectedPresetSourceKeys = JSON.parse(savedSourceSelection);
+                } catch (e) {
+                    selectedPresetSourceKeys = [];
+                }
+            } else {
+                let defaultSource = presetSources.find(source => (source.display_name || "").includes("2024"));
+                selectedPresetSourceKeys = defaultSource ? [defaultSource.key] : [];
+                localStorage.setItem("SelectedPresetSourceKeysV2", JSON.stringify(selectedPresetSourceKeys));
             }
 
-            FetchAllOpen5ePages(
-                "https://api.open5e.com/v2/creatures/?format=json&fields=key,name,document",
-                function (creatures) {
-                    let monsterSelect = $("#monster-select");
-                    monsterSelect.append("<option value=''></option>");
-
-                    let sourceGroups = {};
-                    for (let index = 0; index < creatures.length; index++) {
-                        let creature = creatures[index],
-                            sourceKey = creature.document && creature.document.key ? creature.document.key : null,
-                            sourceName = sourceKey && sourceNameByKey[sourceKey] ? sourceNameByKey[sourceKey] :
-                                creature.document && creature.document.display_name ? creature.document.display_name :
-                                    "Other Sources";
-                        if (!sourceGroups[sourceName])
-                            sourceGroups[sourceName] = [];
-                        sourceGroups[sourceName].push(creature);
-                    }
-
-                    let sourceNames = Object.keys(sourceGroups).sort();
-                    for (let sourceIndex = 0; sourceIndex < sourceNames.length; sourceIndex++) {
-                        let sourceName = sourceNames[sourceIndex],
-                            sourceCreatures = sourceGroups[sourceName];
-                        sourceCreatures.sort((a, b) => a.name.localeCompare(b.name));
-
-                        monsterSelect.append("<option value=''></option>");
-                        monsterSelect.append("<option value=''>-" + sourceName + "-</option>");
-                        for (let creatureIndex = 0; creatureIndex < sourceCreatures.length; creatureIndex++) {
-                            let creature = sourceCreatures[creatureIndex];
-                            monsterSelect.append("<option value='" + creature.key + "'>" + creature.name + "</option>");
-                        }
-                    }
-                },
-                function () {
-                    $("#monster-select-form").html("Unable to load monster presets.")
-                });
+            RenderSourceCheckboxes();
+            LoadCreaturePresetListBySources();
         },
         function () {
             $("#monster-select-form").html("Unable to load source documents.")
