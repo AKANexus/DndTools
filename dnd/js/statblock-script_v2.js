@@ -1062,8 +1062,14 @@ function NormalizeOpen5ePreset(preset) {
         actions.sort((a, b) => (a.order_in_statblock != null ? a.order_in_statblock : 0) - (b.order_in_statblock != null ? b.order_in_statblock : 0));
 
         let byType = (type) => actions.filter(action => action.action_type === type).map(action => {
-            let usage = action.usage_limits && action.usage_limits.type === "PER_DAY" && action.usage_limits.param ?
-                " (" + action.usage_limits.param + "/day)" : "";
+            let usage = "";
+            if (action.usage_limits) {
+                if (action.usage_limits.type === "PER_DAY" && action.usage_limits.param) {
+                    usage = " (" + action.usage_limits.param + "/day)";
+                } else if (action.usage_limits.type === "RECHARGE_ON_ROLL" && action.usage_limits.param) {
+                    usage = " (Recharge " + action.usage_limits.param + "-6)";
+                }
+            }
             return {
                 name: action.name + usage,
                 desc: action.desc
