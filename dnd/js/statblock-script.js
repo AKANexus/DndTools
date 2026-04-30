@@ -1045,6 +1045,13 @@ var InputFunctions = {
 }
 
 function NormalizeOpen5ePreset(preset) {
+    let NormalizeChallengeRating = (cr) => {
+        if (cr === 0.125) return "1/8";
+        if (cr === 0.25) return "1/4";
+        if (cr === 0.5) return "1/2";
+        return cr != null ? cr.toString() : "0";
+    };
+
     // v2 shape passthrough
     if (preset && preset.ability_scores) {
         let actions = Array.isArray(preset.actions) ? preset.actions.slice() : [];
@@ -1080,7 +1087,7 @@ function NormalizeOpen5ePreset(preset) {
             intelligence: abilityScores.intelligence,
             wisdom: abilityScores.wisdom,
             charisma: abilityScores.charisma,
-            challenge_rating: preset.challenge_rating,
+            challenge_rating: NormalizeChallengeRating(preset.challenge_rating),
             armor_class: preset.armor_class,
             armor_desc: preset.armor_detail || "",
             hit_dice: preset.hit_dice || "1d8",
@@ -1122,6 +1129,8 @@ function NormalizeOpen5ePreset(preset) {
     }
 
     // v1 passthrough
+    if (preset && preset.challenge_rating != null)
+        preset.challenge_rating = NormalizeChallengeRating(preset.challenge_rating);
     return preset;
 }
 
