@@ -2070,29 +2070,74 @@ var ArrayFunctions = {
     }
 }
 
+function FetchAllOpen5ePages(url, onSuccess, onFail) {
+    let allResults = [];
+
+    let fetchPage = function (pageUrl) {
+        $.getJSON(pageUrl, function (response) {
+            let pageResults = Array.isArray(response.results) ? response.results : [];
+            allResults = allResults.concat(pageResults);
+
+            if (response.next)
+                fetchPage(response.next);
+            else
+                onSuccess(allResults);
+        }).fail(onFail);
+    };
+
+    fetchPage(url);
+}
+
 // Document ready function
 $(function () {
-    // Load the preset monster names
-    $.getJSON("https://api.open5e.com/v2/creatures/?format=json&fields=key,name&limit=1000&document__key=srd-2014", function (srdArr) {
-        let monsterSelect = $("#monster-select");
-        monsterSelect.append("<option value=''></option>");
-        monsterSelect.append("<option value=''>-5e SRD-</option>");
-        $.each(srdArr.results, function (index, value) {
-            monsterSelect.append("<option value='" + value.key + "'>" + value.name + "</option>");
-        })
-        $.getJSON("https://api.open5e.com/v2/creatures/?format=json&fields=key,name&limit=1000&document__key=tob", function (tobArr) {
-            monsterSelect.append("<option value=''></option>");
-            monsterSelect.append("<option value=''>-Tome of Beasts (Kobold Press)-</option>");
-            $.each(tobArr.results, function (index, value) {
-                monsterSelect.append("<option value='" + value.key + "'>" + value.name + "</option>");
-            })
-        })
-            .fail(function () {
-                $("#monster-select-form").html("Unable to load Tome of Beasts monster presets.")
-            });
-    })
-        .fail(function () {
-            $("#monster-select-form").html("Unable to load monster presets.")
+    // Load the preset monster names, grouped by source document display name
+    FetchAllOpen5ePages(
+        "https://api.open5e.com/v2/documents/?type=SOURCE",
+        function (documents) {
+            let sourceNameByKey = {};
+            for (let index = 0; index < documents.length; index++) {
+                let document = documents[index];
+                sourceNameByKey[document.key] = document.display_name || document.name || document.key;
+            }
+
+            FetchAllOpen5ePages(
+                "https://api.open5e.com/v2/creatures/?format=json&fields=key,name,document",
+                function (creatures) {
+                    let monsterSelect = $("#monster-select");
+                    monsterSelect.append("<option value=''></option>");
+
+                    let sourceGroups = {};
+                    for (let index = 0; index < creatures.length; index++) {
+                        let creature = creatures[index],
+                            sourceKey = creature.document && creature.document.key ? creature.document.key : null,
+                            sourceName = sourceKey && sourceNameByKey[sourceKey] ? sourceNameByKey[sourceKey] :
+                                creature.document && creature.document.display_name ? creature.document.display_name :
+                                    "Other Sources";
+                        if (!sourceGroups[sourceName])
+                            sourceGroups[sourceName] = [];
+                        sourceGroups[sourceName].push(creature);
+                    }
+
+                    let sourceNames = Object.keys(sourceGroups).sort();
+                    for (let sourceIndex = 0; sourceIndex < sourceNames.length; sourceIndex++) {
+                        let sourceName = sourceNames[sourceIndex],
+                            sourceCreatures = sourceGroups[sourceName];
+                        sourceCreatures.sort((a, b) => a.name.localeCompare(b.name));
+
+                        monsterSelect.append("<option value=''></option>");
+                        monsterSelect.append("<option value=''>-" + sourceName + "-</option>");
+                        for (let creatureIndex = 0; creatureIndex < sourceCreatures.length; creatureIndex++) {
+                            let creature = sourceCreatures[creatureIndex];
+                            monsterSelect.append("<option value='" + creature.key + "'>" + creature.name + "</option>");
+                        }
+                    }
+                },
+                function () {
+                    $("#monster-select-form").html("Unable to load monster presets.")
+                });
+        },
+        function () {
+            $("#monster-select-form").html("Unable to load source documents.")
         });
 
     // Load the json data
